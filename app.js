@@ -182,6 +182,64 @@ function factorCharts(){
 
 function setRadarView(view){radarView=view;$$('[data-radar-view]').forEach(b=>{const selected=b.dataset.radarView===view;b.classList.toggle('active',selected);b.setAttribute('aria-pressed',String(selected));});$$('[data-radar-card]').forEach(card=>card.hidden=view!=='all'&&card.dataset.radarCard!==view);}
 
+// function refreshRadarInputs() {
+//   const container = $('#radar-threshold-inputs');
+//   if (!container) return;
+  
+//   container.innerHTML = `
+//     <div style="grid-column: 1 / -1; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #d6dfe9;">
+//       <button id="sync-thresholds-btn" class="button secondary small" style="background:#e6eef7; border-color:#8aaccd; font-weight:bold;">Подстроить пороги под начальное состояние u(0)</button>
+//       <span style="font-size:12px; color:#666; margin-left:10px;">Автоматически сместит оранжевую линию так, чтобы в момент t=0 красная линия не выходила за её пределы.</span>
+//     </div>
+//   ` + M.ids.map((id, i) => `
+//     <div style="display:flex; flex-direction:column; gap:4px;">
+//        <label style="font-size:12px; font-weight:bold; color:#29445f; display:block;" title="${esc(M.names[i])}">
+//         <span>u<sub>${id}</sub> (${i<6?'≥':'≤'})</span>
+//       </label>
+//       <input type="number" step=".01" min="0" max="1" value="${config.targets[i]}" data-radar-target="${i}" style="width:100%; border:1px solid #bccbd9; border-radius:4px; padding:4px 8px; font-size:12px;">
+//     </div>
+//   `).join('');
+
+//   const btn = $('#sync-thresholds-btn');
+//   if (btn) {
+//     btn.onclick = () => {
+//       M.ids.forEach((id, i) => {
+//         const initialVal = config.initial[i];
+//         let newTarget;
+        
+//         if (i < 6) {
+//           newTarget = Math.max(0, initialVal - 0.05);
+//         } else {
+//           newTarget = Math.min(1, initialVal + 0.05);
+//         }
+//         config.targets[i] = Math.round(newTarget * 100) / 100;
+//       });
+      
+//       refreshRadarInputs();
+//       if(document.querySelector('#state-editor')) refreshEditors();
+      
+//       if (result) {
+//         result.config.targets = config.targets;
+//         radars();
+//       }
+//       notify('Пороги автоматически подстроены под начальные значения u(0).');
+//     };
+//   }
+
+//   $$('[data-radar-target]').forEach(el => {
+//     el.onchange = () => {
+//       const i = +el.dataset.radarTarget;
+//       const v = Math.max(0, Math.min(1, parseFloat(el.value) || 0));
+//       config.targets[i] = v;
+//       el.value = v;
+      
+//       if (result) {
+//         result.config.targets = config.targets;
+//         radars();
+//       }
+//     };
+//   });
+// }
 function refreshRadarInputs() {
   const container = $('#radar-threshold-inputs');
   if (!container) return;
@@ -189,11 +247,11 @@ function refreshRadarInputs() {
   container.innerHTML = `
     <div style="grid-column: 1 / -1; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #d6dfe9;">
       <button id="sync-thresholds-btn" class="button secondary small" style="background:#e6eef7; border-color:#8aaccd; font-weight:bold;">Подстроить пороги под начальное состояние u(0)</button>
-      <span style="font-size:12px; color:#666; margin-left:10px;">Автоматически сместит оранжевую линию так, чтобы в момент t=0 красная линия не выходила за её пределы.</span>
+      <span style="font-size:12px; color:#666; margin-left:10px;">Сдвинет оранжевые пороги так, чтобы они были больше (дальше от центра), чем красные начальные значения.</span>
     </div>
   ` + M.ids.map((id, i) => `
     <div style="display:flex; flex-direction:column; gap:4px;">
-       <label style="font-size:12px; font-weight:bold; color:#29445f; display:block;" title="${esc(M.names[i])}">
+      <label style="font-size:12px; font-weight:bold; color:#29445f; display:block;" title="${esc(M.names[i])}">
         <span>u<sub>${id}</sub> (${i<6?'≥':'≤'})</span>
       </label>
       <input type="number" step=".01" min="0" max="1" value="${config.targets[i]}" data-radar-target="${i}" style="width:100%; border:1px solid #bccbd9; border-radius:4px; padding:4px 8px; font-size:12px;">
@@ -205,13 +263,13 @@ function refreshRadarInputs() {
     btn.onclick = () => {
       M.ids.forEach((id, i) => {
         const initialVal = config.initial[i];
-        let newTarget;
+        // Для ВСЕХ показателей ставим порог больше начального значения (с запасом 0.05)
+        // Это гарантирует, что оранжевая линия будет снаружи красной
+        let newTarget = initialVal + 0.05;
         
-        if (i < 6) {
-          newTarget = Math.max(0, initialVal - 0.05);
-        } else {
-          newTarget = Math.min(1, initialVal + 0.05);
-        }
+        // Если вдруг вышли за 1, то прижимаем к 1
+        newTarget = Math.min(1, newTarget);
+        
         config.targets[i] = Math.round(newTarget * 100) / 100;
       });
       
@@ -222,7 +280,7 @@ function refreshRadarInputs() {
         result.config.targets = config.targets;
         radars();
       }
-      notify('Пороги автоматически подстроены под начальные значения u(0).');
+      notify('Пороги подстроены: оранжевая линия теперь снаружи красной для всех показателей.');
     };
   }
 
@@ -240,7 +298,6 @@ function refreshRadarInputs() {
     };
   });
 }
-
 function radars(){
  if(!result)return;
  const views=ISOVisuals.snapshots(result);
